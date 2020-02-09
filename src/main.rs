@@ -1,4 +1,5 @@
-use procfs;
+extern crate procfs;
+
 use std::collections::HashMap;
 
 fn main() {
@@ -8,15 +9,24 @@ fn main() {
         "cache size",
     ];
 
-    let mut host_info = HashMap::new();
+    let mut cpu_details = HashMap::new();
 
     let cpu = procfs::CpuInfo::new();
     match cpu {
-        Ok(x) => cpu_fields(&mut host_info, &cpu_keys, &x.fields),
+        Ok(x) => cpu_fields(&mut cpu_details, &cpu_keys, &x.fields),
         Err(_e) => println!("{:?}", "Couldn't fetch CPU info!")
     }
 
-    println!("{:#?}", host_info)
+    println!("{:#?}", cpu_details);
+
+    let mut host = HashMap::new();
+    host.insert("cpu", cpu_details);
+    
+    let client = reqwest::blocking::Client::new();
+    let res = client.post("http://0.0.0.0:9090")
+        .json(&host)
+        .send();
+    println!("{:?}", res);
 }
 
 fn cpu_fields(host_info: &mut HashMap<String, String>, keys: &Vec<&str>, cf: &HashMap<String, String>) {
