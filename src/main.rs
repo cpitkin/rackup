@@ -3,13 +3,21 @@ extern crate procfs;
 use std::collections::HashMap;
 
 fn main() {
+    let mut host = HashMap::new();
+
     let cpu_keys = vec![
         "model name",
         "cpu cores",
         "cache size",
     ];
 
+    let _mem_keys = vec![
+        "mem_total",
+        "swap_total",
+    ];
+
     let mut cpu_details = HashMap::new();
+    let mut mem_details = HashMap::new();
 
     let cpu = procfs::CpuInfo::new();
     match cpu {
@@ -17,11 +25,17 @@ fn main() {
         Err(_e) => println!("{:?}", "Couldn't fetch CPU info!")
     }
 
-    println!("{:#?}", cpu_details);
+    let mem = procfs::Meminfo::new();
+    match mem {
+        Ok(x) => mem_info(&mut mem_details, &x),
+        Err(_e) => println!("{:?}", "Couldn't fetch CPU info!")
+    }
 
-    let mut host = HashMap::new();
     host.insert("cpu", cpu_details);
-    
+    host.insert("mem", mem_details);
+
+    println!("{:#?}", host);
+
     let client = reqwest::blocking::Client::new();
     let res = client.post("http://0.0.0.0:9090")
         .json(&host)
@@ -29,8 +43,8 @@ fn main() {
     println!("{:?}", res);
 }
 
-fn cpu_fields(host_info: &mut HashMap<String, String>, keys: &Vec<&str>, cf: &HashMap<String, String>) {
 
+fn cpu_fields(host_info: &mut HashMap<String, String>, keys: &Vec<&str>, cf: &HashMap<String, String>) {
     for key in keys.iter() {
         if cf.contains_key(&key.to_string()) {
             let kv = cf.get(&key.to_string());
@@ -42,4 +56,9 @@ fn cpu_fields(host_info: &mut HashMap<String, String>, keys: &Vec<&str>, cf: &Ha
             println!("{:?}", "No matching keys found!");
         }
     }
+}
+
+fn mem_info(host_info: &mut HashMap<String, String>, cf: &procfs::Meminfo) {
+    host_info.insert("mem_total".to_string(), cf.mem_total.to_string());
+    host_info.insert("swap_total".to_string(), cf.swap_total.to_string());
 }
